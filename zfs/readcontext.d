@@ -1,17 +1,17 @@
-import codecs
-import logging
-
-from typing import Tuple
-
-from . import ondisk
-from . import util
-
-from .constants import Compression, Checksum, TryConfig
-
-logger = logging.getLogger(__name__)
+import std.experimental.logger;
+import zfs.ondisk;
+import zfs.util;
+import zfs.constants: Compression, Checksum, TryConfig;
 
 
-class ReadContext(object):
+struct ReadContext
+{
+	VDev[] vdevs;
+	Compression defaultCompression;
+	ulong defaultChecksum;
+	ulong blocksize;
+	TryConfig tryConfig;
+
     def __init__(self, vdevs, compression, checksum, ashift, try_config):
         self.vdevs = vdevs
         self.default_compression = compression
@@ -84,23 +84,29 @@ class ReadContext(object):
             logger.error('failed to read any DVAs in block pointer {}'.format(blkptr))
             return b''
 
-    def _read_block_embedded(self, blkptr: ondisk.Blockptr) -> bytes:
-        embedded_blkptr = blkptr.to_embedded()
-        raw_data = embedded_blkptr.data
-        data = self.decompress(raw_data, embedded_blkptr.compression, embedded_blkptr.logical_size+1)
-        return data
+	ubyte[] _read_block_embedded(blkptr: ondisk.Blockptr)
+	{
+		embedded_blkptr = blkptr.to_embedded();
+		raw_data = embedded_blkptr.data;
+		data = this.decompress(raw_data, embedded_blkptr.compression, embedded_blkptr.logical_size+1);
+		return data;
+	}
 
-    def _read_block(self, blkptr: ondisk.Blockptr, dva: ondisk.dva) -> Tuple[bytes, bool]:
-        vdev = self.vdevs[dva.vdev]
-        data = vdev.read_dva(dva)
-        physical_size = (blkptr.physical_size + 1) * 512
-        data = data[:physical_size]
-        valid_chk = self.checksum(data, blkptr.checksum, blkptr.checksum_type)
-        logical_size = (blkptr.logical_size + 1) * 512
-        if valid_chk:
-            logger.debug('decompress: {} {} {}'.format(blkptr, physical_size, logical_size))
-            data = self.decompress(data, blkptr.compression, logical_size)
-        return data, valid_chk
+	auto _read_block(self, blkptr: ondisk.Blockptr, dva: ondisk.dva) -> Tuple[bytes, bool]
+	{
+		auto vdev = self.vdevs[dva.vdev];
+		auto data = vdev.read_dva(dva);
+		auto physical_size = (blkptr.physical_size + 1) * 512;
+		auto data = data[0..physical_size];
+		auto valid_chk = self.checksum(data, blkptr.checksum, blkptr.checksum_type);
+		auto logical_size = (blkptr.logical_size + 1) * 512;
+		if (valid_chk)
+		{
+		    tracef("decompress: %s %s %s".blkptr, physical_size, logical_size);
+		    data = self.decompress(data, blkptr.compression, logical_size);
+		}
+		return tuple(data, valid_chk);
+	}
 
     def read_indirect(self, blkptr: ondisk.Blockptr) -> bytes:
         resolved = []

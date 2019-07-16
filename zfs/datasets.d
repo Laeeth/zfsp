@@ -1,14 +1,8 @@
-import logging
-import os
+import std.experimental.logger;
+// objectset posix
 
-from typing import Any
-from typing import Dict
-from typing import Iterator
-
-from . import objectset
-from zfs import posix
-
-logger = logging.getLogger(__name__)
+struct Dataset
+{
 
 
 class Dataset(object):

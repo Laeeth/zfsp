@@ -1,21 +1,14 @@
-import logging
-import struct
+module zfs.history; import std.experimental.logger; import zfs.nvlist;
 
-from io import BytesIO
-
-from typing import Union
-
-from nvlist import NVTypes
-
-logger = logging.getLogger(__name__)
+int next_break_offset(int x)
+{
+    // this is the next multiple of 8
+    return (x + 7) & ~7;
+}
 
 
-def next_break_offset(x):
-    # this is the next multiple of 8
-    return (x + 7) & ~7
-
-
-class HistoryParser(object):
+struct HistoryParser
+{
     def __init__(self, buffer: Union[BytesIO, bytes]) -> None:
         if isinstance(buffer, bytes):
             self.buf = BytesIO(buffer)
@@ -58,8 +51,7 @@ class HistoryParser(object):
         values = []
         for v in range(value_count):
             if value_type == NVTypes.UINT64:
-                value = self.unpack_uhyper()
-            elif value_type == NVTypes.INT32:
+                value = self.unpack_uhyper() elif value_type == NVTypes.INT32:
                 value = self.unpack_uhyper()
             elif value_type == NVTypes.STRING:
                 value = self.buf.read(remaining)

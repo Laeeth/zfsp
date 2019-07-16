@@ -25,7 +25,10 @@ def locked(f):
     return inner
 
 
-class ZFSFuse(Operations):
+struct ZFSFuse
+{
+	Operations operations;
+	alias operations this;
 
     def __init__(self, pool=None):
         self.pool = pool

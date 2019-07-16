@@ -1,13 +1,7 @@
-import itertools
-import logging
-import operator
-import struct
-from typing import Union, Tuple
+import std.experimental.logger;
+import zfs.ondisk;
+import zfs.vdevs;
 
-from zfs import ondisk, vdevs
-from functools import reduce
-
-logger = logging.getLogger(__name__)
 
 
 def convert(k, base, disks, parity):
@@ -69,33 +63,43 @@ def xor_blocks(*args):
     return structure.pack(*out)
 
 
-class RaidZDev(vdevs.VDev):
-    def __init__(self, parity, devs):
-        self.devs = devs
-        self.parity = parity
-        self.label = devs[0].label
-        self.best_label = devs[0].best_label
-        self.id = self.label[b'vdev_tree'][b'id']
-        self.active_uberblock = devs[0].active_uberblock
+final class RaidZDev:VDev
+{
+	this(parity, devs)
+	{
+		self.devs = devs;
+		self.parity = parity;
+		self.label = devs[0].label;
+		self.best_label = devs[0].best_label;
+		self.id = self.label[b'vdev_tree'][b'id'];
+		self.active_uberblock = devs[0].active_uberblock;
+	}
 
-    def _read_resolved(self, dva):
-        return self.devs[dva.vdev].read_dva(dva)
+	auto _read_resolved(dva)
+	{
+		return self.devs[dva.vdev].read_dva(dva);
+	}
 
-    def read_dva(self, dva):
-        offset = dva.offset
-        num_disks = len(self.devs)
-        parity = self.parity
-        columns, first, addrs = locate_data(num_disks, parity, offset, dva.asize)
-        if columns == num_disks:
-            blocks = [self._read_resolved(addr) for addr in addrs]
-            data = b''.join(blocks[first:])
-        else:
-            raise Exception('wtf? {}'.format(addrs))
-        computed = xor_blocks(*blocks[first:])
-        self.blocks = blocks[:] + [computed]
-        self.last_dva = dva, addrs
-        return data
+	auto read_dva(dva)
+	{
+		offset = dva.offset;
+		num_disks =self.devs.length;
+		parity = self.parity;
+		columns, first, addrs = locate_data(num_disks, parity, offset, dva.asize);
+		if columns == num_disks:
+		    blocks = [self._read_resolved(addr) for addr in addrs]
+		    data = b''.join(blocks[first:])
+		else:
+		    raise Exception('wtf? {}'.format(addrs))
+		computed = xor_blocks(*blocks[first:])
+		self.blocks = blocks[:] + [computed]
+		self.last_dva = dva, addrs;
+		return data;
+	}
 
-    def read(self, offset: Union[int, Tuple[int, int]], size: int) -> bytes:
-        raise Exception
+	ubyte[] read(offset: Union[int, Tuple[int, int]], size: int)
+	{
+		raise Exception;
+	}
+}
 
